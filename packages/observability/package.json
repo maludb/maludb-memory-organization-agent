@@ -12,6 +12,7 @@
     }
   },
   "dependencies": {
+    "@maludb-agent/job-contracts": "workspace:*",
     "pino": "^9.5.0"
   },
   "devDependencies": {
