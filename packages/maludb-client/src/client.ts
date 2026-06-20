@@ -6,10 +6,12 @@ import {
   MaludbTimeoutError,
 } from "./errors.js";
 import type {
+  ConsolidateResult,
   FetchLike,
   HealthResponse,
   MaludbClientConfig,
   MemoryConfigResponse,
+  MemoryNote,
   Statement,
   Subject,
   SweepResult,
@@ -128,6 +130,49 @@ export class MaludbClient {
       method: "PATCH",
       path: `/v1/statements/${id}`,
       body: validTo ? { valid_to: validTo } : { close: true },
+    });
+  }
+
+  /** GET /v1/memory/notes — notes/memories, optionally scoped to a subject (for clustering). */
+  async searchMemoryNotes(filter: {
+    q?: string;
+    subjectLike?: string;
+    limit?: number;
+    offset?: number;
+    allSources?: boolean;
+  }): Promise<MemoryNote[]> {
+    const res = await this.request<{ notes?: MemoryNote[] }>({
+      method: "GET",
+      path: "/v1/memory/notes",
+      query: {
+        q: filter.q,
+        subject_like: filter.subjectLike,
+        limit: filter.limit,
+        offset: filter.offset,
+        all_sources: filter.allSources === undefined ? undefined : String(filter.allSources),
+      },
+    });
+    return res.notes ?? [];
+  }
+
+  /** POST /v1/memory/consolidate — merge memories (api-server PR #9). Used on review accept. */
+  consolidate(params: {
+    memoryIds: number[];
+    kind: string;
+    title: string;
+    summary: string;
+    reason?: string;
+  }): Promise<ConsolidateResult> {
+    return this.request<ConsolidateResult>({
+      method: "POST",
+      path: "/v1/memory/consolidate",
+      body: {
+        memory_ids: params.memoryIds,
+        kind: params.kind,
+        title: params.title,
+        summary: params.summary,
+        reason: params.reason,
+      },
     });
   }
 

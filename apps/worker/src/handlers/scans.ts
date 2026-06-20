@@ -1,12 +1,17 @@
 import { createReviewItem, getDailyCost, recordCost } from "@maludb-agent/agent-db";
 import type { JobPayload, JobResult } from "@maludb-agent/job-contracts";
+import { isCapabilityUnavailable } from "@maludb-agent/maludb-client";
 
 import { adapterForPolicy } from "../adapters.js";
-import type { JobContext } from "../context.js";
 import { findCandidateConflicts } from "../contradiction/detect.js";
 import { judgeConflict } from "../contradiction/judge.js";
+import { judgeConsolidation } from "../consolidation/judge.js";
+import type { JobContext } from "../context.js";
 import { resolvePolicyForTenant } from "../policy.js";
 import { errMessage } from "./util.js";
+
+const MIN_CONSOLIDATION_CONFIDENCE = 0.6;
+const MAX_SUBJECTS_FOR_CONSOLIDATION = 200;
 
 /**
  * Detect contradictions between active statements about the same subject (ADR-0005,
@@ -113,18 +118,97 @@ export async function contradictionScan(
   return { subjectsExamined, contradictionsFound, reviewItemsCreated, modelCalls, tokens, capabilityUnavailable: false };
 }
 
-/** Consolidation (phase 2) needs candidate clustering + POST /v1/memory/consolidate. */
+/**
+ * Propose consolidations of overlapping memories (phase 2, docs/worker-design.md §7).
+ * Review-first: clusters memories that share a subject (GET /v1/memory/notes), asks the
+ * model whether to merge + a proposed title/summary, and records a consolidation review
+ * item. Execution (POST /v1/memory/consolidate) happens on review accept, not here.
+ */
 export async function consolidationScan(
   ctx: JobContext,
+  p: JobPayload<"memory.consolidation.scan">,
 ): Promise<JobResult<"memory.consolidation.scan">> {
-  ctx.log.warn(
-    { tenantId: ctx.tenant.id },
-    "consolidation scan not yet implemented; skipping (needs clustering + consolidate workflow)",
-  );
-  return {
-    clustersFound: 0,
-    consolidationsProposed: 0,
-    reviewItemsCreated: 0,
-    capabilityUnavailable: true,
-  };
+  const policy = await resolvePolicyForTenant(ctx.db, ctx.tenant.id);
+
+  if (!policy.consolidation.enabled) {
+    ctx.log.info({ tenantId: ctx.tenant.id }, "consolidation disabled by policy; skipping");
+    return { clustersFound: 0, consolidationsProposed: 0, reviewItemsCreated: 0, capabilityUnavailable: false };
+  }
+
+  let adapter;
+  try {
+    adapter = adapterForPolicy(policy, ctx.deps.env);
+  } catch (err) {
+    ctx.log.warn({ tenantId: ctx.tenant.id, err: errMessage(err) }, "no model adapter; skipping consolidation scan");
+    return { clustersFound: 0, consolidationsProposed: 0, reviewItemsCreated: 0, capabilityUnavailable: true };
+  }
+
+  const callCap = policy.cost_controls.max_model_calls_per_day;
+  const tokenCap = policy.cost_controls.max_tokens_per_day;
+  const alreadySpent = await getDailyCost(ctx.db, ctx.tenant.id);
+  const minRelated = p.minRelatedMemories;
+
+  let clustersFound = 0;
+  let consolidationsProposed = 0;
+  let reviewItemsCreated = 0;
+  let modelCalls = 0;
+  let tokens = 0;
+  const overBudget = (): boolean =>
+    alreadySpent.calls + modelCalls >= callCap || alreadySpent.tokens + tokens >= tokenCap;
+
+  const subjects = await ctx.client.listSubjects({ limit: MAX_SUBJECTS_FOR_CONSOLIDATION });
+
+  for (const subject of subjects) {
+    if (overBudget()) break;
+
+    let notes;
+    try {
+      notes = await ctx.client.searchMemoryNotes({ subjectLike: subject.label, limit: 50 });
+    } catch (err) {
+      if (isCapabilityUnavailable(err)) {
+        ctx.log.warn({ tenantId: ctx.tenant.id }, "note search unavailable; skipping consolidation scan");
+        return { clustersFound, consolidationsProposed, reviewItemsCreated, capabilityUnavailable: true };
+      }
+      throw err;
+    }
+    if (notes.length < minRelated) continue;
+    clustersFound += 1;
+    if (overBudget()) break;
+
+    const { verdict, inputTokens, outputTokens } = await judgeConsolidation(adapter, subject.label, notes);
+    modelCalls += 1;
+    tokens += inputTokens + outputTokens;
+    await recordCost(ctx.db, {
+      tenantId: ctx.tenant.id,
+      model: policy.models.default.model,
+      calls: 1,
+      tokens: inputTokens + outputTokens,
+    });
+
+    if (!verdict.consolidate || verdict.confidence < MIN_CONSOLIDATION_CONFIDENCE) continue;
+    consolidationsProposed += 1;
+
+    const memoryIds = notes.map((n) => n.id).sort((a, b) => a - b);
+    const dedupKey = `${ctx.tenant.id}:consolidation:${subject.id}:${memoryIds.join(",")}`;
+    await createReviewItem(ctx.db, {
+      tenantId: ctx.tenant.id,
+      kind: "consolidation",
+      dedupKey,
+      payload: {
+        subjectId: subject.id,
+        subjectLabel: subject.label,
+        memoryIds,
+        proposedKind: "consolidated",
+        proposedTitle: verdict.title,
+        proposedSummary: verdict.summary,
+        confidence: verdict.confidence,
+        rationale: verdict.rationale,
+        preserveSourceLinks: policy.consolidation.preserve_source_links,
+      },
+      provenance: { detectedBy: `${policy.models.default.provider}:${policy.models.default.model}` },
+    });
+    reviewItemsCreated += 1;
+  }
+
+  return { clustersFound, consolidationsProposed, reviewItemsCreated, capabilityUnavailable: false };
 }

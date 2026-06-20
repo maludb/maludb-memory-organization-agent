@@ -71,3 +71,17 @@ export interface Subject {
   type: string | null;
   description: string | null;
 }
+
+/** A note/memory as returned by GET /v1/memory/notes (id is the malu$memory id). */
+export interface MemoryNote {
+  id: number;
+  title: string | null;
+  source_type: string | null;
+  snippet: string | null;
+  created_at: string;
+}
+
+/** Result of POST /v1/memory/consolidate. */
+export interface ConsolidateResult {
+  consolidated_into_memory_id: number;
+}

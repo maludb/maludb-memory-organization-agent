@@ -25,7 +25,7 @@ async function dispatch(ctx: JobContext, jobType: JobType, raw: unknown): Promis
     case "memory.contradiction.scan":
       return contradictionScan(ctx, parseJobPayload(jobType, raw));
     case "memory.consolidation.scan":
-      return consolidationScan(ctx);
+      return consolidationScan(ctx, parseJobPayload(jobType, raw));
   }
   throw new Error(`unhandled job type: ${String(jobType)}`);
 }
