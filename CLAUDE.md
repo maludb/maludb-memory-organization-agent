@@ -47,8 +47,9 @@ plane) over shared packages, backed by Redis (queue) and its own PostgreSQL (ope
 Job types: `tenant.healthcheck`, `policy.evaluate`, `memory.reindex.sweep`, `skills.reindex.sweep`,
 `embeddings.drain`, `memory.contradiction.scan`, `memory.consolidation.scan`.
 
-Packages: `job-contracts`, `maludb-client`, `policy-engine`, `observability`, `model-adapters`
-(npm scope suggestion: `@maludb-agent/*`).
+Packages: `job-contracts`, `maludb-client`, `policy-engine`, `observability`, `model-adapters`,
+`agent-db` (operational Postgres: plain pg + SQL migrations + typed repositories, no ORM).
+npm scope: `@maludb-agent/*`.
 
 ## Tech stack & conventions
 
@@ -62,7 +63,7 @@ Packages: `job-contracts`, `maludb-client`, `policy-engine`, `observability`, `m
 
 1. Spec docs ✅ · example policies ✅ · README ✅
 2. Workspace scaffold + root config
-3. `job-contracts` → `maludb-client` → `policy-engine` (with scoring tests) → `observability` → `model-adapters`
+3. `job-contracts` → `maludb-client` → `policy-engine` → `agent-db` → `observability` → `model-adapters`
 4. `agent-api` (health first, then routes) · `agent-worker` (3 real sweeps end-to-end first)
 5. Operational DB schema + migrations
 6. Contradiction detection worker + the new API endpoints it needs (PRs on maludb-python-api-server)

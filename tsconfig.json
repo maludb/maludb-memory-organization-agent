@@ -6,6 +6,7 @@
     { "path": "./packages/maludb-client" },
     { "path": "./packages/model-adapters" },
     { "path": "./packages/policy-engine" },
+    { "path": "./packages/agent-db" },
     { "path": "./apps/agent-api" },
     { "path": "./apps/worker" }
   ]

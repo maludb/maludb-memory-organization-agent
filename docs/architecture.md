@@ -55,6 +55,7 @@ packages/
   policy-engine/    Policy schema + loader/validator + versioning + prioritization scoring + evaluator.
   observability/    Pino logger, metrics/tracing hooks, job lifecycle event emitters.
   model-adapters/   Provider-neutral model interface + openai-compatible/anthropic/ollama adapters.
+  agent-db/         Operational Postgres: plain pg + SQL migrations + typed repositories (no ORM).
 
 docs/               This documentation set.
 examples/policies/  Concrete policy files validating against the policy schema.
@@ -63,9 +64,10 @@ examples/policies/  Concrete policy files validating against the policy schema.
 Dependency direction (no cycles):
 
 ```
-apps/agent-api  ─▶ job-contracts, policy-engine, observability, (db access)
-apps/worker     ─▶ job-contracts, maludb-client, policy-engine, model-adapters, observability, (db access)
+apps/agent-api  ─▶ job-contracts, policy-engine, observability, agent-db
+apps/worker     ─▶ job-contracts, maludb-client, policy-engine, model-adapters, observability, agent-db
 policy-engine   ─▶ job-contracts
+agent-db        ─▶ job-contracts
 maludb-client   ─▶ (standalone; only HTTP + its own types)
 model-adapters  ─▶ (standalone; only HTTP + its own types)
 observability   ─▶ (standalone)
