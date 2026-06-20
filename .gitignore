@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# logs / os / editors
+*.log
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/job-contracts" },
+    { "path": "./packages/observability" },
+    { "path": "./packages/maludb-client" },
+    { "path": "./packages/model-adapters" },
+    { "path": "./packages/policy-engine" },
+    { "path": "./apps/agent-api" },
+    { "path": "./apps/worker" }
+  ]
+}

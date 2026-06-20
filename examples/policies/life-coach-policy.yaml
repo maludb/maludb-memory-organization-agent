@@ -1,0 +1,71 @@
+# Life-coach tenant — long-lived personal memory.
+# Goals, preferences, and relationships matter most; nothing is forgotten quickly;
+# contradictions about a person's stated preferences are high-value to surface gently.
+tenant: life-coach
+memory_policy_version: 1
+
+priorities:
+  default_domain_weight: 1.0
+  domains:
+    - { name: user_preferences, weight: 2.0 }
+    - { name: goals,            weight: 1.8 }
+    - { name: relationships,    weight: 1.6 }
+    - { name: health,           weight: 1.5 }
+    - { name: transient_chitchat, weight: 0.3 }
+  scoring:
+    contradiction: 2.0        # surfacing changed preferences/goals is the point
+    low_confidence: 1.2
+    low_value_decay: 0.5      # decay slowly; personal history stays relevant
+
+schedules:
+  policy.evaluate:           { every: "2h" }
+  memory.reindex.sweep:      { cron: "0 */3 * * *" }   # every 3h, less churn
+  embeddings.drain:          { every: "15m" }
+  memory.contradiction.scan: { cron: "0 4 * * *" }
+  skills.reindex.sweep:      { enabled: false }        # no skill bundles for this tenant
+
+reindex:
+  default_max_age_days: 60
+  high_priority_max_age_days: 14
+  low_priority_max_age_days: 180
+  batch_limit: 24
+  max_batches_per_run: 30
+
+embeddings:
+  batch_limit: 48
+  kinds: [subject, verb]
+  max_batches_per_run: 40
+
+contradictions:
+  detect: true
+  auto_resolve: false         # always review — never silently "correct" someone's life
+  create_review_items: true
+  min_confidence_to_flag: 0.5
+  max_subjects_per_run: 150
+
+lifecycle:
+  staleness:
+    enabled: true
+    stale_after_days: 540      # ~18 months
+    auto_mark_stale: true
+  archival:
+    enabled: false             # keep everything accessible
+  retirement:
+    enabled: false
+  downrank:
+    enabled: true
+    low_value_score_threshold: 0.15
+    require_review: false
+
+cost_controls:
+  max_model_calls_per_day: 300
+  max_tokens_per_day: 600000
+  prefer_local_models_for_low_priority: true
+
+models:
+  default:      { provider: anthropic, model: claude-haiku-4-5 }
+  high_quality: { provider: anthropic, model: claude-opus-4-8 }
+
+review:
+  required_for: [retirement, consolidation, contradiction_resolution]
+  fallback_to_notes_issue: true

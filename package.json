@@ -1,0 +1,26 @@
+{
+  "name": "maludb-memory-organization-agent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Background agent that organizes and maintains MaluDB memories through the MaluDB public API.",
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev:api": "pnpm --filter @maludb-agent/agent-api dev",
+    "dev:worker": "pnpm --filter @maludb-agent/worker dev"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

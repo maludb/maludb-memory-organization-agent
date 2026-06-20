@@ -1,0 +1,8 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Native postinstall build scripts (pnpm 10+ requires explicit opt-in).
+allowBuilds:
+  esbuild: true # required by tsx + vitest
+  msgpackr-extract: false # optional native accelerator for bullmq's msgpackr; JS fallback is fine

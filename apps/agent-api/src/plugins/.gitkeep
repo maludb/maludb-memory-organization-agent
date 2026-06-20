@@ -1,0 +1,2 @@
+# Fastify plugins (auth, agent-db access, error handling) go here.
+# See docs/architecture.md §3.

@@ -1,0 +1,83 @@
+# Developer-memory tenant — code/architecture knowledge with heavy churn.
+# Architecture and decisions weighted high; transient debugging notes decay fast and
+# may be downranked automatically. Skills are first-class. Faster, larger sweeps.
+tenant: developer-memory
+memory_policy_version: 1
+
+priorities:
+  default_domain_weight: 1.0
+  domains:
+    - { name: architecture,        weight: 2.0 }
+    - { name: decisions,           weight: 1.8 }
+    - { name: api_contracts,       weight: 1.6 }
+    - { name: user_preferences,    weight: 1.2 }
+    - { name: transient_debugging, weight: 0.4 }
+  scoring:
+    staleness: 1.3              # stale code knowledge is actively harmful
+    model_version_change: 1.0   # re-embed aggressively when embedding model changes
+    low_value_decay: 1.5        # prune debugging noise faster
+    contradiction: 1.5
+
+schedules:
+  policy.evaluate:           { every: "30m" }
+  memory.reindex.sweep:      { cron: "*/30 * * * *" }  # every 30 min
+  skills.reindex.sweep:      { cron: "0 * * * *" }     # hourly — skills change often
+  embeddings.drain:          { every: "5m" }
+  memory.contradiction.scan: { cron: "0 */6 * * *" }   # 4×/day
+
+reindex:
+  default_max_age_days: 14
+  high_priority_max_age_days: 3
+  low_priority_max_age_days: 45
+  batch_limit: 64
+  max_batches_per_run: 100
+
+skills_reindex:
+  max_age_days: 14
+  batch_limit: 64
+  max_batches_per_run: 40
+
+embeddings:
+  batch_limit: 128
+  kinds: [subject, verb]
+  max_batches_per_run: 80
+
+contradictions:
+  detect: true
+  auto_resolve: false
+  create_review_items: true
+  min_confidence_to_flag: 0.7   # higher bar; code facts should be unambiguous
+  max_subjects_per_run: 300
+
+consolidation:
+  enabled: false                # turn on once /v1/memory/consolidate lands
+  min_related_memories: 3
+  require_review: true
+
+lifecycle:
+  staleness:
+    enabled: true
+    stale_after_days: 90
+    auto_mark_stale: true
+  archival:
+    enabled: false
+  retirement:
+    enabled: false
+  downrank:
+    enabled: true
+    low_value_score_threshold: 0.3  # downrank transient debugging aggressively
+    require_review: false
+
+cost_controls:
+  max_model_calls_per_day: 1000
+  max_tokens_per_day: 2000000
+  prefer_local_models_for_low_priority: true
+
+models:
+  default:      { provider: anthropic, model: claude-haiku-4-5 }
+  low_priority: { provider: ollama,    model: llama3.1 }
+  high_quality: { provider: anthropic, model: claude-opus-4-8 }
+
+review:
+  required_for: [retirement, consolidation, contradiction_resolution]
+  fallback_to_notes_issue: true
