@@ -57,6 +57,12 @@ Each endpoint is a thin proxy over an **existing Core function** (verified prese
 
 > All new endpoints: same auth (token=tenant), accept `namespace` where relevant, return `{"error":{"code","message"}}` on failure, and should appear in `/openapi.json` so the agent's capability probe detects them.
 
+> **Implementation note (verified).** These are **API-only** changes — no `maludb-public` core PR is needed. The tenant role inherits `maludb_memory_executor` (which has `USAGE ON SCHEMA maludb_core`), and the target functions are `SECURITY INVOKER` with PUBLIC/executor `EXECUTE`, so the API calls `maludb_core.<fn>(...)` directly inside `db_tx_core` (same pattern as the existing `maludb_core.secret_set` call). Each endpoint guards with a `pg_proc` check → `501` when the core build is too old.
+>
+> **Status:** B.3 (lifecycle/staleness/score/reinforcement), B.4 (consolidate), and B.3's retention-candidates are **implemented** in `maludb-python-api-server` PR #9, at these actual paths:
+> `POST /v1/memory/consolidate`, `POST /v1/memory/lifecycle`, `POST /v1/memory/staleness`, `POST /v1/memory/score`, `POST /v1/memory/reinforcement`, `GET /v1/memory/retention-candidates`.
+> B.1/B.2 (contradiction/review) are **deferred pending a modeling decision** — Core stores contradictions at the claim/fact layer (`malu$fact_claim role='contradicts'`, no insert helper) while the agent reads the SVPOR-statement layer. In the meantime the contradiction worker can record findings in the agent's own `review_items` and signal MaluDB via `POST /v1/memory/score` (`category=contradiction_status`).
+
 ### B.1 Contradiction write (priority — ADR-0005)
 **Need.** After detection, persist a contradiction so Core/UX can act on it and so the agent can dedupe.
 - `POST /v1/contradictions`
