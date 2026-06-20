@@ -12,6 +12,7 @@
     { "path": "../../packages/observability" },
     { "path": "../../packages/maludb-client" },
     { "path": "../../packages/model-adapters" },
-    { "path": "../../packages/policy-engine" }
+    { "path": "../../packages/policy-engine" },
+    { "path": "../../packages/agent-db" }
   ]
 }

@@ -1,6 +1,9 @@
 import pg from "pg";
 import type { Pool } from "pg";
 
+/** The operational DB connection pool. */
+export type Db = Pool;
+
 /** Anything we can run a query against — a Pool or a checked-out PoolClient. */
 export type Queryable = Pick<Pool, "query">;
 
@@ -12,6 +15,6 @@ export interface AgentDbConfig {
 }
 
 /** Create a connection pool to the agent operational database. */
-export function createPool(config: AgentDbConfig): Pool {
+export function createPool(config: AgentDbConfig): Db {
   return new pg.Pool({ connectionString: config.connectionString, max: config.max ?? 10 });
 }

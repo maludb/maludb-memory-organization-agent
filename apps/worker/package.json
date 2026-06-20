@@ -9,12 +9,14 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
+    "@maludb-agent/agent-db": "workspace:*",
     "@maludb-agent/job-contracts": "workspace:*",
     "@maludb-agent/maludb-client": "workspace:*",
     "@maludb-agent/model-adapters": "workspace:*",
     "@maludb-agent/observability": "workspace:*",
     "@maludb-agent/policy-engine": "workspace:*",
-    "bullmq": "^5.34.0"
+    "bullmq": "^5.34.0",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0"
