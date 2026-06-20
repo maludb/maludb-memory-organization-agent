@@ -74,6 +74,7 @@ TypeScript · Node.js 24 LTS · Fastify · BullMQ + Redis · PostgreSQL · pnpm 
 | [`docs/api-contract.md`](./docs/api-contract.md) | Existing endpoints used + new endpoints to add (with the Core function each proxies). |
 | [`docs/policies.md`](./docs/policies.md) | Policy schema + the prioritization scoring formula. |
 | [`docs/worker-design.md`](./docs/worker-design.md) | Each job: inputs, outputs, failure, retry, idempotency, API calls. |
+| [`docs/HANDOFF.md`](./docs/HANDOFF.md) | Current build state, how to run it, and open follow-ups. |
 
 ## Getting started (planned)
 
