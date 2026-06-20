@@ -1,3 +1,6 @@
+/** A fetch-compatible function. Injectable so the client is unit-testable without a network. */
+export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
+
 /**
  * Per-tenant connection config. The bearer token IS the tenant selector — there is no
  * tenant or namespace header (see docs/decisions.md ADR-0004, docs/api-contract.md).
@@ -9,16 +12,32 @@ export interface MaludbClientConfig {
   token: string;
   /** Memory namespace (body/query field, default "default"); not a header. */
   namespace?: string;
-  /** Per-request timeout in ms. The reference CLI has none; we add one. */
+  /** Per-request timeout in ms (default 30000). The reference CLI has none; we add one. */
   timeoutMs?: number;
-  /** Max retry attempts for transient failures (timeouts / 5xx). */
+  /** Max retries for transient failures — timeouts / network / 5xx / 429 (default 3). */
   maxRetries?: number;
+  /** Base backoff in ms; doubles per attempt with full jitter (default 200). */
+  retryBaseMs?: number;
+  /** Backoff ceiling in ms (default 10000). */
+  retryMaxMs?: number;
+  /** Override fetch (for tests). Defaults to the global fetch. */
+  fetch?: FetchLike;
 }
 
 /** Structured error envelope returned by the API: {"error":{"code","message"}}. */
 export interface MaludbApiError {
   code: string;
   message: string;
+}
+
+export interface HealthResponse {
+  status: string;
+  [key: string]: unknown;
+}
+
+export interface MemoryConfigResponse {
+  namespace: string;
+  config: unknown;
 }
 
 /** Shared shape of the three synchronous "drain one batch" sweep endpoints. */
@@ -43,4 +62,12 @@ export interface Statement {
   provenance: string | null;
   source_package_id: number | null;
   created_at: string;
+}
+
+/** A subject (entity) as returned by GET /v1/subjects. */
+export interface Subject {
+  id: number;
+  label: string;
+  type: string | null;
+  description: string | null;
 }
