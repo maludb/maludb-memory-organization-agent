@@ -122,6 +122,15 @@ export class MaludbClient {
     return res.subjects ?? [];
   }
 
+  /** PATCH /v1/statements/{id} — close (invalidate) a statement; used by auto-resolve. */
+  async closeStatement(id: number, validTo?: string): Promise<void> {
+    await this.request({
+      method: "PATCH",
+      path: `/v1/statements/${id}`,
+      body: validTo ? { valid_to: validTo } : { close: true },
+    });
+  }
+
   // --- request engine ----------------------------------------------------------
 
   private get namespace(): string {

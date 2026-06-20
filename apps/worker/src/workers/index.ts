@@ -23,7 +23,7 @@ async function dispatch(ctx: JobContext, jobType: JobType, raw: unknown): Promis
     case "embeddings.drain":
       return embeddingsDrain(ctx, parseJobPayload(jobType, raw));
     case "memory.contradiction.scan":
-      return contradictionScan(ctx);
+      return contradictionScan(ctx, parseJobPayload(jobType, raw));
     case "memory.consolidation.scan":
       return consolidationScan(ctx);
   }
