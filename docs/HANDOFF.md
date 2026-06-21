@@ -86,19 +86,30 @@ also needs the tenant's MaluDB to support note search (Core ≥ 0.98.0) or it re
   same item could double-execute the (non-idempotent) consolidate before one is recorded —
   fine for an operator API, but a `resolving` claim state would make it exactly-once.
 
+- **Capability probe in `tenant.healthcheck`** ✅ — the healthcheck now reads the tenant's
+  `/openapi.json` and derives a complete per-tenant capability map (`maludb-client`
+  `deriveCapabilities` / `CAPABILITY_ENDPOINTS`), persisted on the tenant row (replacing the
+  old `{}`). `capabilityState` gives three-valued logic — `true`/`false` once probed,
+  `undefined` when not — so callers only hard-block on an explicit `false` and an un-probed
+  tenant is never locked out. The execute-on-accept path gates on it: accepting a review
+  whose action needs an absent endpoint returns `422 capability_unavailable` and leaves the
+  item open, instead of round-tripping to a 501. Probe failure degrades gracefully (empty
+  map + warning). As PRs land per environment, capabilities light up with no agent redeploy.
+
 ## Open follow-ups (not built)
 1. **First-class contradiction/review API in MaluDB** — currently deferred by decision
    (claim/fact-layer vs SVPOR-layer mismatch; see `api-contract.md` B.1/B.2). The agent uses
    its own `review_items` + `POST /v1/memory/score` (`contradiction_status`) meanwhile.
 2. **Finish `model-adapters`** — real `openai-compatible` and `ollama` adapters (interfaces exist).
-3. **Capability probe** in `tenant.healthcheck` — populate the per-tenant capability map from
-   `/openapi.json` (architecture.md §8 / api-contract Part C). Today it records `{}`.
-4. **Scored candidate listing + single-call provenance** — api-contract B.5/B.6 (need new
+3. **Scored candidate listing + single-call provenance** — api-contract B.5/B.6 (need new
    API endpoints; the scoring module is designed to consume either source).
-5. **Deploy** — systemd units for `agent-api` + `agent-worker` (supersede MaluDB's timers,
+4. **Deploy** — systemd units for `agent-api` + `agent-worker` (supersede MaluDB's timers,
    ADR-0003); first deploy target is systemd, Docker optional later.
-6. **Land PR #9** (and re-run `enable_memory_schema` per tenant if needed) so the lifecycle
+5. **Land PR #9** (and re-run `enable_memory_schema` per tenant if needed) so the lifecycle
    endpoints are available to the execute-on-accept path.
+
+> Note: scan **scheduling** still gates reactively (runtime `501` → skip), not yet from the
+> persisted capability map. Pre-gating scans on `capabilityState` is a natural extension.
 
 ## Map
 

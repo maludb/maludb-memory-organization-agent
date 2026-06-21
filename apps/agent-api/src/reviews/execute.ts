@@ -1,5 +1,21 @@
 import type { ReviewProposal } from "@maludb-agent/job-contracts";
-import type { MaludbClient } from "@maludb-agent/maludb-client";
+import type { CapabilityName, MaludbClient } from "@maludb-agent/maludb-client";
+
+/** The MaluDB capability each proposed action needs, for pre-execution gating (Part C). */
+export function requiredCapability(action: ReviewProposal): CapabilityName {
+  switch (action.type) {
+    case "closeStatement":
+      return "statements.close";
+    case "consolidate":
+      return "memory.consolidate";
+    case "lifecycle":
+      return "memory.lifecycle";
+    default: {
+      const exhaustive: never = action;
+      throw new Error(`no capability mapping for review action: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
 
 /**
  * Execute a review item's proposed action through the MaluDB API (docs/api-contract.md

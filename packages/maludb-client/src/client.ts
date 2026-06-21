@@ -5,6 +5,7 @@ import {
   MaludbNetworkError,
   MaludbTimeoutError,
 } from "./errors.js";
+import type { OpenApiDoc } from "./capabilities.js";
 import type {
   ConsolidateResult,
   FetchLike,
@@ -56,6 +57,11 @@ export class MaludbClient {
   /** GET /health — unauthenticated liveness. */
   health(): Promise<HealthResponse> {
     return this.request<HealthResponse>({ method: "GET", path: "/health", auth: false });
+  }
+
+  /** GET /openapi.json — capability discovery (docs/api-contract.md Part C). Unauthenticated. */
+  getOpenApi(): Promise<OpenApiDoc> {
+    return this.request<OpenApiDoc>({ method: "GET", path: "/openapi.json", auth: false });
   }
 
   /** GET /v1/memory/config?namespace= */
