@@ -9,9 +9,11 @@ import type {
   ConsolidateResult,
   FetchLike,
   HealthResponse,
+  LifecycleResult,
   MaludbClientConfig,
   MemoryConfigResponse,
   MemoryNote,
+  ScoreResult,
   Statement,
   Subject,
   SweepResult,
@@ -172,6 +174,52 @@ export class MaludbClient {
         title: params.title,
         summary: params.summary,
         reason: params.reason,
+      },
+    });
+  }
+
+  /** POST /v1/memory/lifecycle — transition an object's lifecycle state (api-server PR #9). */
+  setLifecycle(params: {
+    objectType: "fact" | "memory" | "episode_object";
+    objectId: number;
+    state: string;
+    reason?: string;
+  }): Promise<LifecycleResult> {
+    return this.request<LifecycleResult>({
+      method: "POST",
+      path: "/v1/memory/lifecycle",
+      body: {
+        object_type: params.objectType,
+        object_id: params.objectId,
+        state: params.state,
+        reason: params.reason,
+      },
+    });
+  }
+
+  /** POST /v1/memory/score — set a MAUT subscore (api-server PR #9), e.g. a downrank. */
+  setScore(params: {
+    objectType: "fact" | "memory" | "episode_object";
+    objectId: number;
+    category: string;
+    subscore: number;
+    evaluatorName: string;
+    evaluatorKind?: string;
+    evaluatorMeta?: unknown;
+    evidence?: unknown;
+  }): Promise<ScoreResult> {
+    return this.request<ScoreResult>({
+      method: "POST",
+      path: "/v1/memory/score",
+      body: {
+        object_type: params.objectType,
+        object_id: params.objectId,
+        category: params.category,
+        subscore: params.subscore,
+        evaluator_name: params.evaluatorName,
+        evaluator_kind: params.evaluatorKind,
+        evaluator_meta: params.evaluatorMeta,
+        evidence: params.evidence,
       },
     });
   }

@@ -85,3 +85,15 @@ export interface MemoryNote {
 export interface ConsolidateResult {
   consolidated_into_memory_id: number;
 }
+
+/** Result of POST /v1/memory/lifecycle. */
+export interface LifecycleResult {
+  object_type: string;
+  object_id: number;
+  state: string;
+}
+
+/** Result of POST /v1/memory/score. */
+export interface ScoreResult {
+  maut_score_id: number;
+}

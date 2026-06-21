@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Queryable } from "./pool.js";
 import { getDailyCost, recordCost } from "./repositories/cost-records.js";
-import { createReviewItem } from "./repositories/review-items.js";
+import { createReviewItem, getReviewItem, resolveReviewItem } from "./repositories/review-items.js";
 import { getTenant, upsertTenant } from "./repositories/tenants.js";
 import { setWatermark } from "./repositories/watermarks.js";
 
@@ -54,6 +54,36 @@ describe("review items repo", () => {
     expect(calls[0]?.text).toContain("ON CONFLICT (tenant_id, dedup_key)");
     expect(calls[0]?.values?.[2]).toBe(JSON.stringify({ a: 1 }));
     expect(calls[0]?.values?.[4]).toBe("subj:verb:pred");
+  });
+
+  it("fetches a single item by id", async () => {
+    const { db, calls } = fakeDb([{ id: "r1", status: "open" }]);
+    const row = await getReviewItem(db, "r1");
+    expect(row?.id).toBe("r1");
+    expect(calls[0]?.text).toContain("WHERE id = $1");
+  });
+
+  it("resolves only while open and serializes the result", async () => {
+    const { db, calls } = fakeDb([{ id: "r1", status: "accepted" }]);
+    const row = await resolveReviewItem(db, "r1", "accepted", {
+      resolvedBy: "ops",
+      note: "ok",
+      result: { consolidated_into_memory_id: 9 },
+    });
+    expect(row?.status).toBe("accepted");
+    expect(calls[0]?.text).toContain("status = 'open'");
+    expect(calls[0]?.values).toEqual([
+      "r1",
+      "accepted",
+      "ops",
+      "ok",
+      JSON.stringify({ consolidated_into_memory_id: 9 }),
+    ]);
+  });
+
+  it("returns null when no open item matched (already resolved / race)", async () => {
+    const { db } = fakeDb([]);
+    expect(await resolveReviewItem(db, "r1", "rejected")).toBeNull();
   });
 });
 

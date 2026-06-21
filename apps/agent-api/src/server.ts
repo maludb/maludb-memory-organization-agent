@@ -7,6 +7,7 @@ import { registerOperatorAuth } from "./plugins/auth.js";
 import { healthRoutes } from "./routes/health.js";
 import { registerJobRoutes } from "./routes/jobs.js";
 import { registerPolicyRoutes } from "./routes/policies.js";
+import { registerReviewRoutes } from "./routes/reviews.js";
 import { registerTenantRoutes } from "./routes/tenants.js";
 
 /**
@@ -33,6 +34,7 @@ export function buildServer(deps: AppDeps): FastifyInstance {
   registerTenantRoutes(app, deps);
   registerPolicyRoutes(app, deps);
   registerJobRoutes(app, deps);
+  registerReviewRoutes(app, deps);
 
   return app;
 }

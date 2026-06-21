@@ -83,6 +83,9 @@ export async function contradictionScan(
       const dedupKey =
         `${ctx.tenant.id}:contradiction:${group.subjectId}:${group.verbId}:` +
         `${group.predicateId ?? "none"}:${statementIds.join(",")}`;
+      // The proposed resolution: close the lowest-confidence ("loser") edge. Computed once
+      // so the review item and any auto-resolve act on the same statement (FR-C4).
+      const loser = [...group.statements].sort((a, b) => (a.confidence ?? 0) - (b.confidence ?? 0))[0]!;
 
       if (p.createReviewItems) {
         await createReviewItem(ctx.db, {
@@ -97,6 +100,8 @@ export async function contradictionScan(
             statementIds,
             confidence: verdict.confidence,
             rationale: verdict.rationale,
+            // Executed verbatim if an operator accepts the review (apps/agent-api reviews route).
+            proposedAction: { type: "closeStatement", statementId: loser.id, reason: verdict.rationale },
           },
           provenance: { detectedBy: `${policy.models.default.provider}:${policy.models.default.model}` },
         });
@@ -104,8 +109,7 @@ export async function contradictionScan(
       }
 
       if (p.autoResolve) {
-        // Close the lowest-confidence (the "loser") statement. Never default-on (FR-C4).
-        const loser = [...group.statements].sort((a, b) => (a.confidence ?? 0) - (b.confidence ?? 0))[0]!;
+        // Close the loser now. Never default-on (FR-C4).
         try {
           await ctx.client.closeStatement(loser.id);
         } catch (err) {
@@ -204,6 +208,15 @@ export async function consolidationScan(
         confidence: verdict.confidence,
         rationale: verdict.rationale,
         preserveSourceLinks: policy.consolidation.preserve_source_links,
+        // Executed verbatim if an operator accepts the review (apps/agent-api reviews route).
+        proposedAction: {
+          type: "consolidate",
+          memoryIds,
+          kind: "consolidated",
+          title: verdict.title,
+          summary: verdict.summary,
+          reason: verdict.rationale,
+        },
       },
       provenance: { detectedBy: `${policy.models.default.provider}:${policy.models.default.model}` },
     });

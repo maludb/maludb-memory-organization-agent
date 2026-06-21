@@ -37,14 +37,21 @@ describe("migrate()", () => {
   it("runs pending migrations in a transaction and records them", async () => {
     const { pool, queries } = fakePool([]);
     const ran = await migrate(pool);
-    expect(ran).toEqual(["0001_init"]);
+    expect(ran).toEqual(migrations.map((m) => m.id));
     expect(queries).toContain("BEGIN");
     expect(queries).toContain("COMMIT");
     expect(queries.some((q) => /CREATE TABLE IF NOT EXISTS tenants/.test(q))).toBe(true);
   });
 
-  it("skips already-applied migrations", async () => {
+  it("runs only the migrations not yet applied", async () => {
     const { pool, queries } = fakePool(["0001_init"]);
+    const ran = await migrate(pool);
+    expect(ran).toEqual(["0002_review_resolution"]);
+    expect(queries).toContain("BEGIN");
+  });
+
+  it("skips when every migration is already applied", async () => {
+    const { pool, queries } = fakePool(migrations.map((m) => m.id));
     const ran = await migrate(pool);
     expect(ran).toEqual([]);
     expect(queries).not.toContain("BEGIN");

@@ -29,6 +29,9 @@ importers:
       '@maludb-agent/job-contracts':
         specifier: workspace:*
         version: link:../../packages/job-contracts
+      '@maludb-agent/maludb-client':
+        specifier: workspace:*
+        version: link:../../packages/maludb-client
       '@maludb-agent/observability':
         specifier: workspace:*
         version: link:../../packages/observability
