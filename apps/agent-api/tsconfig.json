@@ -9,6 +9,7 @@
   "exclude": ["dist", "node_modules", "src/**/*.test.ts"],
   "references": [
     { "path": "../../packages/job-contracts" },
+    { "path": "../../packages/maludb-client" },
     { "path": "../../packages/observability" },
     { "path": "../../packages/policy-engine" },
     { "path": "../../packages/agent-db" }

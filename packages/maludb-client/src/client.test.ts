@@ -90,6 +90,62 @@ describe("MaludbClient request engine", () => {
   });
 });
 
+describe("MaludbClient maintenance writes", () => {
+  function bodyOf(init?: RequestInit): Record<string, unknown> {
+    return JSON.parse(String(init?.body)) as Record<string, unknown>;
+  }
+
+  it("closes a statement via PATCH", async () => {
+    const { fetch, calls } = recorder(() => json(200, {}));
+    const client = new MaludbClient({ ...baseConfig, fetch });
+
+    await client.closeStatement(42);
+    expect(calls[0]?.url).toBe("http://maludb.test/v1/statements/42");
+    expect(calls[0]?.init?.method).toBe("PATCH");
+    expect(bodyOf(calls[0]?.init)).toEqual({ close: true });
+  });
+
+  it("sends consolidate with snake_case memory_ids", async () => {
+    const { fetch, calls } = recorder(() => json(201, { consolidated_into_memory_id: 99 }));
+    const client = new MaludbClient({ ...baseConfig, fetch });
+
+    const res = await client.consolidate({ memoryIds: [1, 2], kind: "consolidated", title: "T", summary: "S" });
+    expect(res.consolidated_into_memory_id).toBe(99);
+    expect(calls[0]?.url).toBe("http://maludb.test/v1/memory/consolidate");
+    expect(bodyOf(calls[0]?.init)).toMatchObject({ memory_ids: [1, 2], kind: "consolidated", title: "T" });
+  });
+
+  it("maps lifecycle params to snake_case", async () => {
+    const { fetch, calls } = recorder(() => json(200, { object_type: "memory", object_id: 5, state: "stale" }));
+    const client = new MaludbClient({ ...baseConfig, fetch });
+
+    await client.setLifecycle({ objectType: "memory", objectId: 5, state: "stale", reason: "old" });
+    expect(calls[0]?.url).toBe("http://maludb.test/v1/memory/lifecycle");
+    expect(bodyOf(calls[0]?.init)).toEqual({ object_type: "memory", object_id: 5, state: "stale", reason: "old" });
+  });
+
+  it("maps score params to snake_case", async () => {
+    const { fetch, calls } = recorder(() => json(201, { maut_score_id: 7 }));
+    const client = new MaludbClient({ ...baseConfig, fetch });
+
+    const res = await client.setScore({
+      objectType: "fact",
+      objectId: 8,
+      category: "contradiction_status",
+      subscore: 0.2,
+      evaluatorName: "agent",
+    });
+    expect(res.maut_score_id).toBe(7);
+    expect(bodyOf(calls[0]?.init)).toMatchObject({
+      object_type: "fact",
+      object_id: 8,
+      category: "contradiction_status",
+      subscore: 0.2,
+      evaluator_name: "agent",
+    });
+  });
+});
+
 describe("MaludbClient error handling", () => {
   it("treats 501 as a capability-unavailable error (no retry)", async () => {
     const { fetch, calls } = recorder(() => json(501, { error: { code: "not_implemented", message: "nope" } }));

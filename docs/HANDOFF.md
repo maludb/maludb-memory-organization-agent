@@ -17,7 +17,7 @@ only** (no SQL, no direct Core access — ADR-0001). All 14 planned units are do
 - `model-adapters` — provider-neutral interface + a real **Anthropic** adapter and `createAdapter` factory. `openai-compatible` / `ollama` are interface stubs.
 
 **Apps** (`apps/`)
-- `agent-api` (Fastify) — operator-auth-gated control plane: `/health`, `/v1/tenants`, `/v1/policies`, `/v1/jobs` (list/get/trigger/retry). Migrates `agent-db` on boot.
+- `agent-api` (Fastify) — operator-auth-gated control plane: `/health`, `/v1/tenants`, `/v1/policies`, `/v1/jobs` (list/get/trigger/retry), `/v1/reviews` (list/get/resolve, execute-on-accept). Migrates `agent-db` on boot.
 - `worker` (BullMQ) — migrates on boot, sets per-tenant repeatable schedules from policy, and runs job handlers with run recording + lifecycle events:
   - `tenant.healthcheck`, `policy.evaluate`
   - `memory.reindex.sweep`, `skills.reindex.sweep`, `embeddings.drain` — wired end-to-end (batch-loop until drained/capped, `501`→skip, watermarks)
@@ -70,23 +70,34 @@ also needs the tenant's MaluDB to support note search (Core ≥ 0.98.0) or it re
 `capabilityUnavailable` and skips. The tenant's MaluDB login must be a member of
 `maludb_memory_executor` for writes (the standard contract).
 
-## Open follow-ups (not built)
+## Recently built
 
-1. **Review queue API + execute-on-accept** — the highest-value next unit. The scan workers
-   write `review_items` to `agent-db`, but `agent-api` has no `/v1/reviews` routes to list or
-   resolve them. Add list/get/resolve; on **accept**, execute via `maludb-client`
-   (`consolidate`, `closeStatement`, lifecycle/score). This closes the human-in-the-loop.
-2. **First-class contradiction/review API in MaluDB** — currently deferred by decision
+- **Review queue API + execute-on-accept** ✅ — `agent-api` now serves `/v1/reviews`
+  (list/get) and `POST /v1/reviews/:id/resolve` (`{decision: accept|reject, actor?, note?}`).
+  On **accept** it executes the review item's self-contained `proposedAction` through
+  `maludb-client` (`closeStatement` for contradictions, `consolidate` for consolidations,
+  `setLifecycle` for lifecycle) and records the result as resolution provenance; on
+  **reject** it just closes the item. Each scan worker now attaches a typed `proposedAction`
+  (`@maludb-agent/job-contracts` `reviewProposalSchema`) so accept is deterministic. New
+  client methods `setLifecycle`/`setScore` map to PR #9's `/v1/memory/lifecycle` and
+  `/v1/memory/score`. agent-db migration `0002` adds `resolved_by`/`resolution_note`/
+  `resolution_result`; `resolveReviewItem` is now a compare-and-set on `status='open'`.
+  Residual hardening: resolve is check→execute→CAS, so two *simultaneous* accepts of the
+  same item could double-execute the (non-idempotent) consolidate before one is recorded —
+  fine for an operator API, but a `resolving` claim state would make it exactly-once.
+
+## Open follow-ups (not built)
+1. **First-class contradiction/review API in MaluDB** — currently deferred by decision
    (claim/fact-layer vs SVPOR-layer mismatch; see `api-contract.md` B.1/B.2). The agent uses
    its own `review_items` + `POST /v1/memory/score` (`contradiction_status`) meanwhile.
-3. **Finish `model-adapters`** — real `openai-compatible` and `ollama` adapters (interfaces exist).
-4. **Capability probe** in `tenant.healthcheck` — populate the per-tenant capability map from
+2. **Finish `model-adapters`** — real `openai-compatible` and `ollama` adapters (interfaces exist).
+3. **Capability probe** in `tenant.healthcheck` — populate the per-tenant capability map from
    `/openapi.json` (architecture.md §8 / api-contract Part C). Today it records `{}`.
-5. **Scored candidate listing + single-call provenance** — api-contract B.5/B.6 (need new
+4. **Scored candidate listing + single-call provenance** — api-contract B.5/B.6 (need new
    API endpoints; the scoring module is designed to consume either source).
-6. **Deploy** — systemd units for `agent-api` + `agent-worker` (supersede MaluDB's timers,
+5. **Deploy** — systemd units for `agent-api` + `agent-worker` (supersede MaluDB's timers,
    ADR-0003); first deploy target is systemd, Docker optional later.
-7. **Land PR #9** (and re-run `enable_memory_schema` per tenant if needed) so the lifecycle
+6. **Land PR #9** (and re-run `enable_memory_schema` per tenant if needed) so the lifecycle
    endpoints are available to the execute-on-accept path.
 
 ## Map

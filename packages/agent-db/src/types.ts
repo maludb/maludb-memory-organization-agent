@@ -57,6 +57,11 @@ export interface ReviewItemRow {
   provenance: unknown;
   createdAt: string;
   resolvedAt: string | null;
+  /** Who resolved the item (operator/actor), recorded on accept/reject. */
+  resolvedBy: string | null;
+  resolutionNote: string | null;
+  /** Structured result of executing the accepted action (e.g. consolidated memory id). */
+  resolutionResult: unknown;
 }
 
 export interface CostRecordRow {
