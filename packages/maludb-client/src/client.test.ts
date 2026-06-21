@@ -51,6 +51,17 @@ describe("MaludbClient request engine", () => {
     expect(calls[0]?.url).toBe("http://maludb.test/v1/memory/config?namespace=default");
   });
 
+  it("fetches /openapi.json without auth for capability discovery", async () => {
+    const { fetch, calls } = recorder(() => json(200, { paths: { "/v1/statements": { get: {} } } }));
+    const client = new MaludbClient({ ...baseConfig, fetch });
+
+    const doc = await client.getOpenApi();
+
+    expect(calls[0]?.url).toBe("http://maludb.test/openapi.json");
+    expect(authHeader(calls[0]?.init)).toBeUndefined();
+    expect(doc.paths?.["/v1/statements"]).toBeDefined();
+  });
+
   it("omits auth on /health", async () => {
     const { fetch, calls } = recorder(() => json(200, { status: "ok" }));
     const client = new MaludbClient({ ...baseConfig, fetch });

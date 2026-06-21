@@ -7,11 +7,12 @@ import {
   type ReviewStatus,
 } from "@maludb-agent/agent-db";
 import { parseReviewProposal, type ReviewProposal } from "@maludb-agent/job-contracts";
+import { capabilityState } from "@maludb-agent/maludb-client";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 
 import type { AppDeps } from "../deps.js";
-import { executeProposal } from "../reviews/execute.js";
+import { executeProposal, requiredCapability } from "../reviews/execute.js";
 
 const resolveInput = z.object({
   decision: z.enum(["accept", "reject"]),
@@ -81,6 +82,19 @@ export function registerReviewRoutes(app: FastifyInstance, deps: AppDeps): void 
 
     const tenant = await getTenant(deps.pool, review.tenantId);
     if (!tenant) return notFound(reply, `tenant ${review.tenantId} not found`);
+
+    // Don't attempt an action the tenant's MaluDB is known not to expose (capability probe,
+    // api-contract Part C). Only block on an explicit `false`; an un-probed tenant (unknown)
+    // falls through to the runtime 501 handling below. Leaves the item open to retry later.
+    const cap = requiredCapability(action);
+    if (capabilityState(tenant.capabilities, cap) === false) {
+      return reply.code(422).send({
+        error: {
+          code: "capability_unavailable",
+          message: `tenant ${tenant.id} cannot execute ${action.type}: ${cap} endpoint not available`,
+        },
+      });
+    }
 
     let result: unknown;
     try {

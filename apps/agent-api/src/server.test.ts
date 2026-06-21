@@ -200,6 +200,39 @@ describe("agent-api", () => {
     await app.close();
   });
 
+  it("blocks accept when the required capability is known-absent", async () => {
+    let executed = false;
+    const item = {
+      id: "r1",
+      tenantId: "acme",
+      status: "open",
+      payload: {
+        proposedAction: { type: "consolidate", memoryIds: [1], kind: "consolidated", title: "T", summary: "S" },
+      },
+    };
+    const deps = fakeDeps({
+      pool: reviewPool(item, {
+        id: "acme",
+        apiBaseUrl: "http://x",
+        namespace: "default",
+        tokenRef: "R",
+        capabilities: { "memory.consolidate": false },
+      }),
+      makeClient: () => ({ consolidate: async () => ((executed = true), {}) }) as any,
+    });
+    const app = buildServer(deps);
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/reviews/r1/resolve",
+      headers: auth,
+      payload: { decision: "accept" },
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.code).toBe("capability_unavailable");
+    expect(executed).toBe(false);
+    await app.close();
+  });
+
   it("422s an accept when the payload has no proposed action", async () => {
     const item = { id: "r1", tenantId: "acme", status: "open", payload: { subjectLabel: "Acme" } };
     const deps = fakeDeps({ pool: reviewPool(item, { id: "acme" }) });
